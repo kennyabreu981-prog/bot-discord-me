@@ -1,0 +1,144 @@
+const {
+  Client,
+  GatewayIntentBits,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ChannelType,
+  PermissionsBitField
+} = require("discord.js");
+
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds]
+});
+
+// 🧠 FILA 1V1
+let fila = [];
+
+// ================= READY =================
+client.once("ready", () => {
+  console.log(`🤖 Online como ${client.user.tag}`);
+});
+
+// ================= INTERAÇÕES =================
+client.on("interactionCreate", async (interaction) => {
+
+  // ================= PAINEL =================
+  if (interaction.isChatInputCommand && interaction.isChatInputCommand()) {
+    if (interaction.commandName === "painel") {
+
+      const embed = new EmbedBuilder()
+        .setTitle("🎫 PAINEL DE SUPORTE")
+        .setDescription("Clique abaixo para abrir um ticket.")
+        .setColor("Blue");
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId("ticket_open")
+          .setLabel("Abrir Ticket")
+          .setStyle(ButtonStyle.Success)
+      );
+
+      return interaction.reply({ embeds: [embed], components: [row] });
+    }
+
+    // 🧾 REGISTRO
+    if (interaction.commandName === "registro") {
+      return interaction.reply({
+        content: `🧾 Registrado com sucesso: ${interaction.user.username}`,
+        ephemeral: true
+      });
+    }
+
+    // ⚔️ 1V1
+    if (interaction.commandName === "1v1") {
+
+      if (fila.includes(interaction.user.id)) {
+        return interaction.reply({ content: "Você já está na fila!", ephemeral: true });
+      }
+
+      fila.push(interaction.user.id);
+
+      await interaction.reply({ content: "🔥 Entrou na fila 1v1!", ephemeral: true });
+
+      if (fila.length >= 2) {
+        const p1 = fila.shift();
+        const p2 = fila.shift();
+
+        const canal = await interaction.guild.channels.create({
+          name: `1v1-${Date.now()}`,
+          type: ChannelType.GuildText,
+          permissionOverwrites: [
+            {
+              id: interaction.guild.id,
+              deny: [PermissionsBitField.Flags.ViewChannel]
+            },
+            {
+              id: p1,
+              allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages]
+            },
+            {
+              id: p2,
+              allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages]
+            }
+          ]
+        });
+
+        canal.send(`⚔️ 1v1: <@${p1}> vs <@${p2}>`);
+      }
+    }
+  }
+
+  // ================= BOTÃO TICKET =================
+  if (interaction.isButton && interaction.isButton()) {
+
+    if (interaction.customId === "ticket_open") {
+
+      const canal = await interaction.guild.channels.create({
+        name: `ticket-${interaction.user.username}`,
+        type: ChannelType.GuildText,
+        permissionOverwrites: [
+          {
+            id: interaction.guild.id,
+            deny: [PermissionsBitField.Flags.ViewChannel]
+          },
+          {
+            id: interaction.user.id,
+            allow: [
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.SendMessages
+            ]
+          }
+        ]
+      });
+
+      const embed = new EmbedBuilder()
+        .setTitle("🎫 Ticket Aberto")
+        .setDescription("Explique seu problema aqui.")
+        .setColor("Green");
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId("ticket_close")
+          .setLabel("Fechar Ticket")
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      await canal.send({ embeds: [embed], components: [row] });
+
+      return interaction.reply({
+        content: `Ticket criado: ${canal}`,
+        ephemeral: true
+      });
+    }
+
+    if (interaction.customId === "ticket_close") {
+      await interaction.reply("🔒 Fechando ticket...");
+      setTimeout(() => interaction.channel.delete(), 2000);
+    }
+  }
+});
+
+// ================= LOGIN =================
+client.login("SEU_TOKEN_AQUI");
